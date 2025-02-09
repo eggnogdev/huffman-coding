@@ -1,5 +1,6 @@
 use crate::char_code::CharCodePair;
 use crate::huffman_tree::{ HuffmanTree, HuffmanTreeNode };
+use crate::metadata::MetadataKeyValuePair;
 
 pub struct HuffmanCoding;
 
@@ -18,7 +19,7 @@ impl HuffmanCoding {
     // byte currently being written
     let mut current_byte: u8 = 0;
     // index inside the current byte. (bit index in whole string)
-    let mut current_byte_index: u32 = 0;
+    let mut current_byte_index: u64 = 0;
     for ch in s.chars() {
       let pair = Self::get_char_code_pair(ch, &char_codes);
       // rotate bits left by `8 - bits` to turn something like
@@ -59,8 +60,22 @@ impl HuffmanCoding {
       }
     }
 
-    println!("{}", current_byte_index);
-    return bytes;
+    let mut result: Vec<u8> = Vec::new();
+
+    // at this point, current_byte_index represents total number of bits that
+    // are used to represent the compressed data. this is used in the metadata
+    // to let the decompression algorithm know exactly the number of bits it
+    // should care about, ignoring any extra bits left in a byte so it wont
+    // think those extra bits are part of the message.
+    let metadata = Self::generate_metadata(
+      &char_codes,
+      current_byte_index
+    );
+
+    result.append(&mut Self::metadata_to_bytes(&metadata));
+    result.append(&mut bytes);
+
+    return result;
   }
 
   // pub fn decompress(b: Vec<u8>, tree: &HuffmanTree) -> String {
@@ -156,4 +171,33 @@ impl HuffmanCoding {
     // maybe should do better handling but this works.
     panic!();
   }
+
+  // generate the metadata for the CharCodePairs `pairs` and the length
+  // of the compressed data `bits`. 
+  fn generate_metadata(
+    pairs: &Vec<CharCodePair>, 
+    bits: u64
+  ) -> Vec<MetadataKeyValuePair> {
+    let mut result: Vec<MetadataKeyValuePair> = Vec::new();
+    result.push(MetadataKeyValuePair::start_metadata());
+
+    for pair in pairs {
+      result.push(MetadataKeyValuePair::new_dict_entry(pair));
+    }
+
+    result.push(MetadataKeyValuePair::end_metadata(bits));
+
+    return result;
+  }
+
+  // convert the Vec of MetadataKeyValuePair to a Vec of bytes (u8)
+  fn metadata_to_bytes(md: &Vec<MetadataKeyValuePair>) -> Vec<u8> {
+    let mut result: Vec<u8> = Vec::new();
+
+    for entry in md {
+      result.extend_from_slice(&entry.as_bytes());
+    }
+
+    return result;
+  } 
 }
