@@ -18,7 +18,7 @@ impl HuffmanCoding {
     // byte currently being written
     let mut current_byte: u8 = 0;
     // index inside the current byte. (bit index in whole string)
-    let mut current_byte_index = 0;
+    let mut current_byte_index: u32 = 0;
     for ch in s.chars() {
       let pair = Self::get_char_code_pair(ch, &char_codes);
       // rotate bits left by `8 - bits` to turn something like
@@ -52,10 +52,19 @@ impl HuffmanCoding {
         }
 
         // move to next bit in byte
-        current_byte_index += 1;
+        current_byte_index = match current_byte_index.checked_add(1) {
+          Some(n) => n,
+          None => panic!("Length of compressed bits will be too long for the algorithm to handle"),
+        }
       }
     }
 
+    // current_byte_index at this point tells us how many
+    // bits were written and should be taken into account.
+    // with the current specs, it cannot be greater than u32::MAX.
+    // this means that the compressed data (not entire file) must be
+    // no greater than u32::MAX - 1 bits long (about 500mb).
+    println!("{}", current_byte_index);
     return bytes;
   }
 
