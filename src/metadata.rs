@@ -1,24 +1,41 @@
+use crate::char_code::CharCodePair;
+
 const START_METADATA: u16 = 0b0000_0000_0000_0000;
 const DICTIONARY_ENTRY: u16 = 0b0001_0000_0000_0000;
 const END_METADATA: u16 = 0b1111_1111_1111_1111;
 
+const FIRST_BIT_0_U8: u8 = 0b0111_1111;
+const FIRST_BIT_1_U8: u8 = 0b1000_0000;
+
+const FIRST_BIT_0_U16: u16 = 0b0111_1111_1111_1111;
+const FIRST_BIT_1_U16: u16 = 0b1000_0000_0000_0000;
+
+const FIRST_BIT_1_U32: u32 = 0b1000_0000_0000_0000_0000_0000_0000_0000;
+
+const FIRST_BIT_0_U64: u64 = 9223372036854775807;
+const FIRST_BIT_1_U64: u64 = 9223372036854775808;
+
+const LAST_BIT_1_U8: u8 = 0b0000_0001;
+
+const LAST_BIT_0_U16: u16 = 0b1111_1111_1111_1110;
+const LAST_BIT_1_U16: u16 = 0b0000_0000_0000_0001;
+
+const LAST_BIT_0_U64: u64 = 0b1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1110;
+const LAST_BIT_1_U64: u64 = 0b0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001;
+
+const MID_BIT_0_U64: u64 = 0b1111_1111_1111_1111_1111_1111_1111_1110_1111_1111_1111_1111_1111_1111_1111_1111;
+const MID_BIT_1_U64: u64 = 0b0000_0000_0000_0000_0000_0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000;
+
+#[derive(Debug)]
 pub struct MetadataKeyValuePair {
   key: u16,
-  value: u32,
+  value: u64,
 }
 
 impl MetadataKeyValuePair {
-  pub fn from_bytes(b: [u8; 6]) -> MetadataKeyValuePair {
-    const FIRST_BIT_1_U8: u8 = 0b1000_0000;
-
-    const FIRST_BIT_0_U16: u16 = 0b0111_1111_1111_1111;
-    const FIRST_BIT_1_U16: u16 = 0b1000_0000_0000_0000;
-
-    const FIRST_BIT_0_U32: u32 = 0b0111_1111_1111_1111_1111_1111_1111_1111;
-    const FIRST_BIT_1_U32: u32 = 0b1000_0000_0000_0000_0000_0000_0000_0000;
-
+  pub fn from_bytes(b: [u8; 10]) -> MetadataKeyValuePair {
     let mut key: u16 = 0;
-    let mut value: u32 = 0;
+    let mut value: u64 = 0;
 
     // write the key
     for byte in &b[0..2] {
@@ -41,10 +58,10 @@ impl MetadataKeyValuePair {
       for i in 0..8 {
         if byte.rotate_left(i) & FIRST_BIT_1_U8 == FIRST_BIT_1_U8 {
           // current bit in the byte is 1, write 1 to key
-          value |= FIRST_BIT_1_U32;
+          value |= FIRST_BIT_1_U64;
         } else {
           // current bit in the byte is 0, write 0 to key
-          value &= FIRST_BIT_0_U32;
+          value &= FIRST_BIT_0_U64;
         }
 
         // rotate the key bits to edit the next one
@@ -55,20 +72,13 @@ impl MetadataKeyValuePair {
     return MetadataKeyValuePair { key, value };
   }
 
-  pub fn as_bytes(&self) -> [u8; 6] {
-    const FIRST_BIT_0_U8: u8 = 0b0111_1111;
-    const FIRST_BIT_1_U8: u8 = 0b1000_0000;
-
-    const FIRST_BIT_1_U16: u16 = 0b1000_0000_0000_0000;
-
-    const FIRST_BIT_1_U32: u32 = 0b1000_0000_0000_0000_0000_0000_0000_0000;
-
-    let mut result: [u8; 6] = [0; 6];
+  pub fn as_bytes(&self) -> [u8; 10] {
+    let mut result: [u8; 10] = [0; 10];
 
     let mut current_bit: u8 = 0;
     let mut key = self.key;
     let mut value = self.value;
-    while current_bit < 48 {
+    while current_bit < 80 {
       let current_byte_index = (current_bit / 8) as usize;
       let current_byte = &mut result[current_byte_index];
 
@@ -85,7 +95,7 @@ impl MetadataKeyValuePair {
         key = key.rotate_left(1);
       } else {
         // writing the value bits
-        if value & FIRST_BIT_1_U32 == FIRST_BIT_1_U32 {
+        if value & FIRST_BIT_1_U64 == FIRST_BIT_1_U64 {
           // current bit in value is 1, write 1 to current byte
           *current_byte |= FIRST_BIT_1_U8;
         } else {
@@ -101,6 +111,90 @@ impl MetadataKeyValuePair {
     }
 
     return result;
+  }
+
+  pub fn start_metadata() -> MetadataKeyValuePair {
+    return MetadataKeyValuePair {
+      key: START_METADATA,
+      value: 0, 
+    };
+  }
+
+  pub fn end_metadata(bits: u64) -> MetadataKeyValuePair {
+    return MetadataKeyValuePair {
+      key: END_METADATA,
+      value: bits,
+    };
+  }
+
+  // create a MetadataKeyValuePair that signifies a dictionary entry of the
+  // huffman tree. So it states what char it is for, and what bits represent
+  // that char, as well as how many bits are necessary for that char
+  pub fn new_dict_entry(pair: &CharCodePair) -> MetadataKeyValuePair {
+    let mut key = DICTIONARY_ENTRY;
+    let mut value: u64 = u64::MAX;
+    let mut char_value = pair.value as u32;
+    let mut char_code = pair.code;
+    let mut char_bits = pair.bits;
+    // the dictionary key states that it's a dictionary, and how many bits
+    // are used to represent the char (pair.bits). the first 8 bits in the
+    // key states it's a dictionary, and the second 8 bits is the pair.bits
+
+    // write the key
+    for _ in 0..8 {
+      if char_bits & LAST_BIT_1_U8 == LAST_BIT_1_U8 {
+        // current bit in char_bits is 1, write 1 to key
+        key |= LAST_BIT_1_U16;
+      } else {
+        // current bit in char_bits is 0, write 0 to key
+        key &= LAST_BIT_0_U16;
+      }
+
+      // rotate the bits to work on the next bit
+      key = key.rotate_right(1);
+      char_bits = char_bits.rotate_right(1);
+    }
+
+    // reset the bits back to original position
+    key = key.rotate_left(8);
+
+    // write the value
+    // first 32 bits are for the char, because whole char can be up to 32 bits
+    // next 32 bits are for the code that represents the char
+    for i in 0..32 {
+      if char_value & FIRST_BIT_1_U32 == FIRST_BIT_1_U32 {
+        // current bit of char value is 1, write 1 to current bit of
+        // char value in the dictionary value
+        value |= MID_BIT_1_U64;
+      } else {
+        // current bit of char value is 0, write 0 to current bit of
+        // char value in the dictionary value
+        value &= MID_BIT_0_U64;
+      }
+
+      if char_code & FIRST_BIT_1_U32 == FIRST_BIT_1_U32 {
+        // current bit of char code is 1, write 1 to current bit of
+        // char code in the dictionary value
+        value |= LAST_BIT_1_U64;
+      } else {
+        // current bit of char code is 0, write 0 to current bit of
+        // char code in the dictionary value
+        value &= LAST_BIT_0_U64;
+      }
+
+      // only rotate if didn't write last bit
+      if i != 31 {        
+        // rotate all the bits to move to next bit
+        char_value = char_value.rotate_left(1);
+        char_code = char_code.rotate_left(1);
+        value = value.rotate_left(1);
+      }
+    }
+
+    return MetadataKeyValuePair {
+      key,
+      value,
+    };
   }
 }
 

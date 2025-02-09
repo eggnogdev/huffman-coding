@@ -59,11 +59,6 @@ impl HuffmanCoding {
       }
     }
 
-    // current_byte_index at this point tells us how many
-    // bits were written and should be taken into account.
-    // with the current specs, it cannot be greater than u32::MAX.
-    // this means that the compressed data (not entire file) must be
-    // no greater than u32::MAX - 1 bits long (about 500mb).
     println!("{}", current_byte_index);
     return bytes;
   }
@@ -75,14 +70,14 @@ impl HuffmanCoding {
   // Traverse the HuffmanTreeNode to get all the char code pairs
   fn get_char_code_pairs_from_tree(
     tree: &HuffmanTreeNode,
-    current_code: u8,
+    current_code: u32,
     current_code_bits: u8,
     all_pairs: &mut Vec<CharCodePair>
   ) {
     // used to set last bit to 0
-    let last_bit_0 = 0b11111110;
+    let last_bit_0 = 0b1111_1111_1111_1111_1111_1111_1111_1110;
     // used to set last bit to 1
-    let last_bit_1 = 0b00000001;
+    let last_bit_1 = 0b0000_0000_0000_0000_0000_0000_0000_0001;
 
     let left_char = match &tree.left {
       Some(lnode) => lnode.value,
