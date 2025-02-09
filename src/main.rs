@@ -17,5 +17,7 @@ fn main() {
 
   let tree = HuffmanTree::new(&contents);
   let bytes = HuffmanCoding::compress(&contents, &tree);
-  println!("original: {}, compressed: {}", contents.as_bytes().len(), bytes.len());
+
+  let string_decom = HuffmanCoding::decompress(bytes);
+  println!("{:?}", string_decom.as_bytes() == contents.as_bytes());
 }

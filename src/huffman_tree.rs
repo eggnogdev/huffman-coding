@@ -160,23 +160,6 @@ pub struct HuffmanTreeNode {
   pub value: Option<char>,
 }
 
-// impl HuffmanTreeNode {
-//   pub fn child_nodes(&self) -> Vec<&Box<HuffmanTreeNode>> {
-//     let mut result: Vec<&Box<HuffmanTreeNode>> = Vec::new();
-//     match &self.left {
-//       Some(lnode) => result.push(lnode),
-//       _ => {},
-//     };
-
-//     match &self.right {
-//       Some(rnode) => result.push(rnode),
-//       _ => {},
-//     };
-
-//     return result;
-//   }
-// }
-
 // A HuffmanTreeNode with extra info like frequency of the char `value`
 //
 // "Growing" because this is used while growing or creating a Huffman tree.

@@ -1,7 +1,10 @@
 use crate::char_code::CharCodePair;
 
 const START_METADATA: u16 = 0b0000_0000_0000_0000;
+
 const DICTIONARY_ENTRY: u16 = 0b0001_0000_0000_0000;
+const MAX_DICTIONARY_ENTRY: u16 = 0b0001_1111_1111_1111;
+
 const END_METADATA: u16 = 0b1111_1111_1111_1111;
 
 const FIRST_BIT_0_U8: u8 = 0b0111_1111;
@@ -10,6 +13,7 @@ const FIRST_BIT_1_U8: u8 = 0b1000_0000;
 const FIRST_BIT_0_U16: u16 = 0b0111_1111_1111_1111;
 const FIRST_BIT_1_U16: u16 = 0b1000_0000_0000_0000;
 
+const FIRST_BIT_0_U32: u32 = 0b0111_1111_1111_1111_1111_1111_1111_1111;
 const FIRST_BIT_1_U32: u32 = 0b1000_0000_0000_0000_0000_0000_0000_0000;
 
 const FIRST_BIT_0_U64: u64 = 9223372036854775807;
@@ -29,7 +33,7 @@ const MID_BIT_1_U64: u64 = 0b0000_0000_0000_0000_0000_0000_0000_0001_0000_0000_0
 #[derive(Debug)]
 pub struct MetadataKeyValuePair {
   key: u16,
-  value: u64,
+  pub value: u64,
 }
 
 impl MetadataKeyValuePair {
@@ -195,6 +199,81 @@ impl MetadataKeyValuePair {
       key,
       value,
     };
+  }
+
+  // check if this is the end of the metadata
+  pub fn is_end(&self) -> bool {
+    return self.key & END_METADATA == END_METADATA;
+  }
+
+  // check if this is a dictionary entry
+  pub fn is_dict_entry(&self) -> bool {
+    return self.key >= DICTIONARY_ENTRY && self.key <= MAX_DICTIONARY_ENTRY;
+  }
+
+  // convert this to a CharCodePair
+  // 
+  // only works if self.is_dict_entry() == true
+  // will panic otherwise
+  pub fn to_char_code_pair(&self) -> CharCodePair {
+    if !self.is_dict_entry() {
+      panic!("Tried to convert non- dictionary entry to CharCodePair");
+    } else {
+      let mut key = self.key;
+      let mut value = self.value;
+
+      let mut char_value: u32 = 0;
+      let mut char_bits: u8 = 0;
+      let mut char_code: u32 = 0;
+
+      // extract the char_bits from the dictionary key
+      for i in 0..8 {
+        if key & LAST_BIT_1_U16 == LAST_BIT_1_U16 {
+          // current bit in key is 1, write 1 to current bit in char bits
+          char_bits |= FIRST_BIT_1_U8;
+        } else {
+          // current bit in key is 0, write 0 to current bit in char bits
+          char_bits &= FIRST_BIT_0_U8;
+        }
+
+        // don't rotate the bits after writing the last one
+        if i != 7 {
+          key = key.rotate_right(1);
+          char_bits = char_bits.rotate_right(1);
+        }
+      }
+
+      // extract the char_value and char_code from the dictionary value
+      for i in 0..32 {
+        if value & MID_BIT_1_U64 == MID_BIT_1_U64 {
+          // current char value bit in value is 1, write 1 to current bit in char_value
+          char_value |= FIRST_BIT_1_U32;
+        } else {
+          // current char value bit in value is 0, write 0 to current bit in char_value
+          char_value &= FIRST_BIT_0_U32;
+        }
+
+        if value & LAST_BIT_1_U64 == LAST_BIT_1_U64 {
+          // current char code bit in value is 1, write 1 to current bit in char_code
+          char_code |= FIRST_BIT_1_U32;
+        } else {
+          // current char code bit in value is 0, write 0 to current bit in char_code
+          char_code &= FIRST_BIT_0_U32;
+        }
+
+        if i != 31 {
+          value = value.rotate_right(1);
+          char_value = char_value.rotate_right(1);
+          char_code = char_code.rotate_right(1);
+        }
+      }
+
+      return CharCodePair::new(
+        char::from_u32(char_value).unwrap(),
+        char_bits,
+        char_code,
+      );
+    }
   }
 }
 
