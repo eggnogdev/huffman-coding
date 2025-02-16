@@ -20,11 +20,9 @@ I'm sure there are many improvements to be made with how it works, even while st
 
 ## Try it out yourself!
 
-If you have Rust and Cargo already installed, go ahead and build yourself a binary and try it out! If you don't want to do that then follow the steps below.
-
 ### Get the Binary
 
-Check the [Releases](https://github.com/eggnogdev/huffman-coding/releases) page for the binary. Download it and place it wherever you would like to execute it from.
+Install Rust and cargo, build the binary with `cargo build --release`, and place the resulting binary `target/release/huffman-coding` wherever you would like to execute it from
 
 ### Running the Binary
 
