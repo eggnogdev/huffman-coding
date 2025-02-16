@@ -13,6 +13,10 @@ pub struct ClArgs {
   #[arg(short, long, default_value_t = false)]
   pub decompress: bool,
 
+  /// Show verbose output (performance, current step)
+  #[arg(short, long, default_value_t = false)]
+  pub verbose: bool,
+
   /// File to compress/decompress
   #[arg(short, long)]
   pub file: PathBuf,

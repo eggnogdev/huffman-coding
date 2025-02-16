@@ -2,6 +2,8 @@ use crate::char_code::CharCodePair;
 use crate::huffman_tree::{ HuffmanTree, HuffmanTreeNode };
 use crate::metadata::MetadataKeyValuePair;
 
+use std::time::Instant;
+
 pub struct HuffmanCoding;
 
 impl HuffmanCoding {
@@ -83,6 +85,22 @@ impl HuffmanCoding {
     return result;
   }
 
+  pub fn compress_verbose(s: &str, tree: &HuffmanTree) -> Vec<u8> {
+    let before = Instant::now();
+    let compressed = Self::compress(s, tree);
+    println!("Compressed in {:?}", before.elapsed());
+    let compressed_percent = {
+      let og_bytes = s.as_bytes().len() as f64;
+      let new_bytes = compressed.len() as f64;
+
+      (new_bytes / og_bytes) * 100f64
+    };
+
+    println!("Size of compressed bytes relative to original bytes: {:.2?}%", compressed_percent);
+
+    return compressed;
+  }
+
   pub fn decompress(mut b: Vec<u8>) -> String {
     const FIRST_BIT_1_U8: u8 = 0b1000_0000;
 
@@ -145,6 +163,13 @@ impl HuffmanCoding {
     }
 
     return result;
+  }
+
+  pub fn decompress_verbose(b: Vec<u8>) -> String {
+    let before = Instant::now();
+    let decompressed = Self::decompress(b);
+    println!("Decompressed in {:?}", before.elapsed());
+    return decompressed;
   }
 
   // Traverse the HuffmanTreeNode to get all the char code pairs

@@ -13,7 +13,8 @@ use crate::huffman_tree::HuffmanTree;
 use std::{ 
   fs,
   io::Write,
-  path::PathBuf
+  path::PathBuf,
+  time::Instant
 };
 
 use clap::Parser;
@@ -30,12 +31,12 @@ fn main() {
     let contents = fs::read_to_string(args.file)
       .expect("Failed to read passed file");
 
-    run_compression(&contents, args.output);
+    run_compression(&contents, args.output, args.verbose);
   } else if args.decompress {
     let contents = fs::read(args.file) 
       .expect("Failed to read passed file");
 
-    run_decompression(contents, args.output);
+    run_decompression(contents, args.output, args.verbose);
   }
 }
 
@@ -53,9 +54,17 @@ fn validate_args(args: &ClArgs) -> i32 {
   return 0;
 }
 
-fn run_compression(s: &str, output: PathBuf) {
-  let tree = HuffmanTree::new(s);
-  let bytes = HuffmanCoding::compress(s, &tree);
+fn run_compression(s: &str, output: PathBuf, verbose: bool) {
+  let before = Instant::now();
+  let tree = match verbose {
+    true => HuffmanTree::new_verbose(s), 
+    false => HuffmanTree::new(s),
+  };
+
+  let bytes = match verbose {
+    true => HuffmanCoding::compress_verbose(s, &tree),
+    false => HuffmanCoding::compress(s, &tree),
+  };
 
   let mut file = fs::OpenOptions::new()
     .create(true)
@@ -66,10 +75,18 @@ fn run_compression(s: &str, output: PathBuf) {
     Ok(_) => {},
     Err(e) => println!("Error: {e}"),
   };
+
+  if verbose {
+    println!("Total time elapsed: {:?}", before.elapsed());
+  }
 }
 
-fn run_decompression(b: Vec<u8>, output: PathBuf) {
-  let string = HuffmanCoding::decompress(b);
+fn run_decompression(b: Vec<u8>, output: PathBuf, verbose: bool) {
+  let before = Instant::now();
+  let string = match verbose {
+    true => HuffmanCoding::decompress_verbose(b),
+    false => HuffmanCoding::decompress(b),
+  };
 
   let mut file = fs::OpenOptions::new()
     .create(true)
@@ -80,4 +97,8 @@ fn run_decompression(b: Vec<u8>, output: PathBuf) {
     Ok(_) => {},
     Err(e) => println!("Error: {e}"),
   };
+
+  if verbose {
+    println!("Total time elapsed: {:?}", before.elapsed());
+  }
 }

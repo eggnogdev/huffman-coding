@@ -1,6 +1,8 @@
 use crate::char_frequency::CharFrequencyPair;
 use crate::merge_sort::MergeSort;
 
+use std::time::Instant;
+
 pub struct HuffmanTree {
   pub trunk: HuffmanTreeNode,
 }
@@ -15,6 +17,13 @@ impl HuffmanTree {
 
     let trunk = Self::grow(frequencies);
     return HuffmanTree { trunk };
+  }
+
+  pub fn new_verbose(s: &str) -> HuffmanTree {
+    let before = Instant::now();
+    let tree = Self::new(s);
+    println!("Built HuffmanTree in {:?}", before.elapsed());
+    return tree;
   }
 
   // count all the char frequencies of the given string `s` and return
